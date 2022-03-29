@@ -1,0 +1,81 @@
+#!/bin/bash
+
+#Syntax : ./script.sh domain_name
+#Example : ./script.sh google.com
+
+if [ $# -eq 0 ]; then
+ echo -e "No arguments provided"
+ echo -e "\n #Syntax : ./script.sh domain_name "
+exit 1
+fi
+
+mkdir /home/kali/Desktop/Test/$1
+cd /home/kali/Desktop/Test/$1
+
+echo -e "Whois\n"
+
+ip_a=$(dig +short $1 ) 
+whois $ip_a > whois.txt
+
+
+
+echo -e "Subdomain Enumeration\n"
+
+assetfinder --subs-only $1 > $1.asset.txt
+amass enum --passive -d $1 > $1.amass.txt
+
+echo -e "\n----------------------------------------------------"
+echo -e  "----------------------------------------------------\n"
+
+echo -e " Checking Live Hosts \n"
+
+cat $1.asset.txt  $1.amass.txt | sort | uniq  > $1.sub.txt
+cat $1.sub.txt | httpx > $1.txt
+
+echo -e "\n----------------------------------------------------"
+echo -e  "----------------------------------------------------\n"
+
+echo -e "Nmap Scan"
+
+nmap -A -iL $1.sub.txt  -oN nmap.txt 
+
+echo -e "\n----------------------------------------------------"
+echo -e  "----------------------------------------------------\n"
+
+echo -e " NUCLEI SCAN \n\n"
+
+echo -e "\n----------------------------------------------------"
+echo -e  "----------------------------------------------------\n"
+
+echo " Checking for CVE ";
+
+cat $1.txt | nuclei -t  /root/nuclei-templates/cves -o cve.txt
+
+echo -e "\n----------------------------------------------------"
+echo -e  "----------------------------------------------------\n"
+
+echo "Checking for Subdomain  takeovers ";
+
+cat $1.txt | nuclei -t  /root/nuclei-templates/takeovers  -o takeover.txt
+
+
+echo -e "\n----------------------------------------------------"
+echo -e  "----------------------------------------------------\n"
+
+echo "Checking for Exposures ";
+
+cat $1.txt | nuclei -t  /root/nuclei-templates/exposures  -o exposure.txt
+
+
+echo -e "\n----------------------------------------------------"
+echo -e "----------------------------------------------------\n"
+
+
+echo "Checking for misconfiguration ";
+
+cat $1.txt | nuclei -t  /root/nuclei-templates/misconfiguration  -o misconfig.txt
+
+echo -e "\n----------------------------------------------------\n"
+echo -e "\n----------------------------------------------------\n"
+
+echo -e "\n\n----------------------------------------------------\n"
